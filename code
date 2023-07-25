@@ -1,0 +1,65 @@
+import nltk
+import random
+from nltk.corpus import movie_reviews
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import accuracy_score
+
+# Download the movie_reviews dataset
+nltk.download('movie_reviews')
+
+# Function to preprocess text
+def preprocess_text(text):
+    # Convert text to lowercase
+    text = text.lower()
+    # Remove special characters and numbers
+    text = re.sub(r'[^a-zA-Z]', ' ', text)
+    # Tokenize text
+    words = nltk.word_tokenize(text)
+    # Remove stopwords
+    stop_words = set(nltk.corpus.stopwords.words('english'))
+    words = [word for word in words if word not in stop_words]
+    # Lemmatize words
+    lemmatizer = nltk.stem.WordNetLemmatizer()
+    words = [lemmatizer.lemmatize(word) for word in words]
+    return ' '.join(words)
+
+# Load movie_reviews dataset
+documents = [(list(movie_reviews.words(fileid)), category)
+             for category in movie_reviews.categories()
+             for fileid in movie_reviews.fileids(category)]
+
+# Shuffle the documents for randomization
+random.shuffle(documents)
+
+# Preprocess the data
+all_tweets = [(preprocess_text(' '.join(words)), sentiment) for words, sentiment in documents]
+
+# Split data into training and testing sets
+X, y = zip(*all_tweets)
+tfidf_vectorizer = TfidfVectorizer(max_features=1000)
+tfidf_matrix = tfidf_vectorizer.fit_transform(X)
+X_train, X_test, y_train, y_test = train_test_split(tfidf_matrix, y, test_size=0.2, random_state=42)
+
+# Train a Naive Bayes classifier
+classifier = MultinomialNB()
+classifier.fit(X_train, y_train)
+
+# Make predictions on the test set
+y_pred = classifier.predict(X_test)
+
+# Evaluate the model
+accuracy = accuracy_score(y_test, y_pred)
+print("Accuracy:", accuracy)
+
+# Test the model with new data
+new_tweets = ["This movie was great!", "I didn't enjoy this film.", "The acting was superb!"]
+preprocessed_new_tweets = [preprocess_text(tweet) for tweet in new_tweets]
+tfidf_new_tweets = tfidf_vectorizer.transform(preprocessed_new_tweets)
+predicted_sentiments = classifier.predict(tfidf_new_tweets)
+
+print("Predicted sentiments for new tweets:")
+for tweet, sentiment in zip(new_tweets, predicted_sentiments):
+    print(f"- Tweet: {tweet}")
+    print(f"  Sentiment: {sentiment}\n")
